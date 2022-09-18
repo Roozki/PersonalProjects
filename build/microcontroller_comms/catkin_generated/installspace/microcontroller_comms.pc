@@ -1,0 +1,8 @@
+prefix=/home/rowan/PersonalProjectsWS/install
+
+Name: microcontroller_comms
+Description: Description of microcontroller_comms
+Version: 0.0.0
+Cflags: -I${prefix}/include
+Libs: -L${prefix}/lib 
+Requires: 
