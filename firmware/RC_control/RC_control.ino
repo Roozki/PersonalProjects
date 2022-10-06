@@ -5,25 +5,26 @@
 
 #include <Wire.h>
 #include <Servo.h>
-//#include <AccelStepper.h>
+#include <AccelStepper.h>
 
 
 #define throttlePin 2
 #define aileronPin 3
-#define elevatorPin 18
+#define elevatorPin 4
 
-#define prop1pin 7
-#define prop2pin 8
+#define prop1pin 5
+#define prop2pin 6
 
 Servo prop1; 
 Servo prop2; 
 
 int counter;
-int sdrivepin = 7; //small drive m
 
-int motor[] = {0, 1};
-int motorDirPin[] = {3,4};
-int motorPulPin[] = {8,9};
+//int motor[] = {0, 1};
+
+//AccelStepper wheel(1, 8,9);
+//int motorDirPin[] = {3,4};
+//int motorPulPin[] = {8,9};
 
 
 
@@ -59,18 +60,18 @@ int throttle2min = 90;
 
 
 
-//const int imu_address = 0x69; //I2C address of imu
+const int imu_address = 0x68; //I2C address of imu
 //accelerometer
 
 
 
-// float acc_x;
-// float acc_y;
-// float acc_z;
-// float gyro_x;
-// float gyro_y;
-// float gyro_z;
-
+float acc_x;
+float acc_y;
+float acc_z;
+float gyro_x;
+float gyro_y;
+float gyro_z;
+int temperature;
 
 
 
@@ -79,7 +80,7 @@ int throttle2min = 90;
 
 //motor control
 
-//AccelStepper mot1;
+//AccelStepper wheel;
 //
 // void driveMotor(int motor, int dir, int speed){
 // int tmp = speed / 2;
@@ -94,9 +95,20 @@ int throttle2min = 90;
 //  }
 // }
 // }
-
+int mot1 = 8;
+int mot2 = 9;
+int motpwm = 10;
 
 void setup() {
+//   wheel.setMinPulseWidth(50)
+//   wheel.setMaxSpeed(900);
+// wheel.setSpeed(110);
+
+pinMode(mot1, OUTPUT);
+pinMode(mot2, OUTPUT);
+pinMode(motpwm, OUTPUT);
+
+  
   Serial.begin(9600);
   pinMode(throttlePin, INPUT_PULLUP);
    pinMode(aileronPin, INPUT_PULLUP);
@@ -107,22 +119,31 @@ void setup() {
 
 
 
-// Wire.begin();
-  // Wire.beginTransmission(imu_address);
-  // Wire.write(0x6B); //PWR_MGMT_1 register
-  // Wire.write(0); //wakey wakey MPU-6050
-  // Wire.endTransmission(true);
-prop1.attach(prop2pin);
-prop2.attach(prop2pin);
+Wire.begin();
+  Wire.beginTransmission(imu_address);
+  Wire.write(0x6B); //PWR_MGMT_1 register
+  Wire.write(0); //wakey wakey MPU-6050
+  Wire.endTransmission(true);
+ prop1.attach(prop1pin);
+ prop2.attach(prop2pin);
    
 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
 }
 
-void loop() {   
-  
-  
-//Serial.println("loopin");
+
+void loop() { 
+ forward();
+
+ analogWrite(motpwm, map(throttle, 1100, 1900, 0, 255));
+
+//delay(600);
+//stop();
+//delay(600);
+//backward();
+//delay(600);
+//stop();
+//delay(600);
 
 
 
@@ -135,14 +156,13 @@ if (ailerontmp < 2000){
 if (elevatortmp < 2000){
   elevator = elevatortmp;
 }
-  Serial.print("throttle:         ");   Serial.print(throttle);   Serial.print("     aileron:   ");   Serial.print(aileron);   Serial.print("     elevator:  ");   Serial.println(elevator);
+  //Serial.print("throttle:         ");   Serial.print(throttle);   Serial.print("     aileron:   ");   Serial.print(aileron);   Serial.print("     elevator:  ");   Serial.println(elevator);
 
 
 throttle1 = throttle;
 throttle2 = throttle;
 
-prop1.write(map(throttle1, 1040, 2000, throttle1min, 180));
-prop2.write(map(throttle2, 1040, 2000, throttle2min, 0));
+//analogWrit
 
 
 
@@ -153,32 +173,32 @@ prop2.write(map(throttle2, 1040, 2000, throttle2min, 0));
 
 
 
-//   Wire.beginTransmission(imu_address);
-//   Wire.write(0x3B); // starting with register 0x3B (ACCEL_XOUT_H) [MPU-6000 and MPU-6050 Register Map and Descriptions Revision 4.2, p.40]
-//  Wire.endTransmission(false); // the parameter indicates that the Arduino will send a restart. As a result, the connection is kept active.
-//   Wire.requestFrom(imu_address, 7*2, true); // request a total of 7*2=14 registers
+  Wire.beginTransmission(imu_address);
+  Wire.write(0x3B); // starting with register 0x3B (ACCEL_XOUT_H) [MPU-6000 and MPU-6050 Register Map and Descriptions Revision 4.2, p.40]
+ Wire.endTransmission(false); // the parameter indicates that the Arduino will send a restart. As a result, the connection is kept active.
+  Wire.requestFrom(imu_address, 7*2, true); // request a total of 7*2=14 registers
   
 
 //"Wire.read()<<8 | Wire.read();" means two registers are read and stored in the same variable
-  // acc_x = Wire.read()<<8 | Wire.read(); // reading registers: 0x3B (ACCEL_XOUT_H) and 0x3C (ACCEL_XOUT_L)
-  // acc_y = Wire.read()<<8 | Wire.read(); // reading registers: 0x3D (ACCEL_YOUT_H) and 0x3E (ACCEL_YOUT_L)
-  // acc_z = Wire.read()<<8 | Wire.read(); // reading registers: 0x3F (ACCEL_ZOUT_H) and 0x40 (ACCEL_ZOUT_L)
-  // temperature.data = Wire.read()<<8 | Wire.read(); // reading registers: 0x41 (TEMP_OUT_H) and 0x42 (TEMP_OUT_L)
-  // gyro_x = Wire.read()<<8 | Wire.read(); // reading registers: 0x43 (GYRO_XOUT_H) and 0x44 (GYRO_XOUT_L)
-  // gyro_y = Wire.read()<<8 | Wire.read(); // reading registers: 0x45 (GYRO_YOUT_H) and 0x46 (GYRO_YOUT_L)
-  // gyro_z = Wire.read()<<8 | Wire.read(); // reading registers: 0x47 (GYRO_ZOUT_H) and 0x48 (GYRO_ZOUT_L)
+  acc_x = Wire.read()<<8 | Wire.read(); // reading registers: 0x3B (ACCEL_XOUT_H) and 0x3C (ACCEL_XOUT_L)
+  acc_y = Wire.read()<<8 | Wire.read(); // reading registers: 0x3D (ACCEL_YOUT_H) and 0x3E (ACCEL_YOUT_L)
+  acc_z = Wire.read()<<8 | Wire.read(); // reading registers: 0x3F (ACCEL_ZOUT_H) and 0x40 (ACCEL_ZOUT_L)
+  temperature = Wire.read()<<8 | Wire.read(); // reading registers: 0x41 (TEMP_OUT_H) and 0x42 (TEMP_OUT_L)
+  gyro_x = Wire.read()<<8 | Wire.read(); // reading registers: 0x43 (GYRO_XOUT_H) and 0x44 (GYRO_XOUT_L)
+  gyro_y = Wire.read()<<8 | Wire.read(); // reading registers: 0x45 (GYRO_YOUT_H) and 0x46 (GYRO_YOUT_L)
+  gyro_z = Wire.read()<<8 | Wire.read(); // reading registers: 0x47 (GYRO_ZOUT_H) and 0x48 (GYRO_ZOUT_L)
   
-  // print out data
-  // Serial.print("aX = "); Serial.print(convert_int16_to_str(acc_x));
+  //print out data
+  Serial.print("aX = "); Serial.print(String(acc_x));
 
-  // Serial.print(" | aY = "); Serial.print(convert_int16_to_str(acc_y));
-  // Serial.print(" | aZ = "); Serial.print(convert_int16_to_str(acc_z));
-  // // the following equation was taken from the documentation [MPU-6000/MPU-6050 Register Map and Description, p.30]
-  // //Serial.print(" | tmp = "); Serial.print(temperature/340.00+36.53);
-  // Serial.print(" | gX = "); Serial.print(convert_int16_to_str(gyro_x));
-  // Serial.print(" | gY = "); Serial.print(convert_int16_to_str(gyro_y));
-  // Serial.print(" | gZ = "); Serial.print(convert_int16_to_str(gyro_z));
-  //  Serial.println();
+  Serial.print(" | aY = "); Serial.print(String(acc_y));
+  Serial.print(" | aZ = "); Serial.print(String(acc_z));
+  // the following equation was taken from the documentation [MPU-6000/MPU-6050 Register Map and Description, p.30]
+  //Serial.print(" | tmp = "); Serial.print(temperature/340.00+36.53);
+  Serial.print(" | gX = "); Serial.print(String(gyro_x));
+  Serial.print(" | gY = "); Serial.print(String(gyro_y));
+  Serial.print(" | gZ = "); Serial.print(String(gyro_z));
+   Serial.println();
   //Serial.println(IR1.data);
 
 
@@ -223,6 +243,24 @@ if (elevatorcurrent > elevatorprev){
 
 }
 
+void forward(){
+digitalWrite(mot1, LOW);  
+digitalWrite(mot2, HIGH);  
+//analogWrite(motpwm, 100);
+}
+
+void backward(){
+  digitalWrite(mot1, HIGH);  
+  digitalWrite(mot2, LOW);  
+  //analogWrite(motpwm, 200);
+}
+
+void stop(){
+  digitalWrite(mot1, LOW);  
+  digitalWrite(mot2, LOW);  
+  analogWrite(motpwm, 0);
+}
+
 
 
 
@@ -250,7 +288,7 @@ if (elevatorcurrent > elevatorprev){
 //  
 //  if(Serial.available() == 0){
 //    Serial.println("");
-//    Serial.println("STRING READ SUCCESSFULL");
+//    Serial.println("String READ SUCCESSFULL");
 //  }
 //  
 //}
@@ -259,7 +297,7 @@ if (elevatorcurrent > elevatorprev){
 //  Serial.println(Serial2.read());
 //   if(Serial2.available() == 0){
 //    Serial.println("");
-//    Serial.println("STRING READ SUCCESSFULL");
+//    Serial.println("String READ SUCCESSFULL");
 //  }
 //}
 
