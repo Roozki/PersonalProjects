@@ -179,49 +179,30 @@ void loop() {
   //   elevator = elevatortmp;
   // }
 
-  if (elevatorSlowdownCount > 20) {
+  if (elevatorSlowdownCount > 15) {
     elevator = pulseIn(elevatorPin, HIGH);
     elevatorSlowdownCount = 0;
   }
 
 
-  // Serial.print("throttle:         ");
-  // Serial.print(throttle);
-  // Serial.print("     aileron:   ");
-  // Serial.print(aileron);
-  // Serial.print("     elevator:  ");
-  // Serial.println(elevator);
-
-
-  throttle1 =  map(throttle, 1100, 2000, 0, 900);
-  throttle2 = map(throttle, 1100, 2000, 0, 900);;
-//   throttle1 = map(throttle1, 1200, 1900, 95, 103);
-// throttle2 = map(throttle2, 1200, 1900, 95, 101);
-
-aileronAdj = map(aileron, 1100, 2000, 70, -70);
-
-
-
-throttle1 = map(throttle1, 0, 900, 1500, 2000);
-throttle2 = map(throttle2, 0, 900, 1500, 2000);
-
-throttle1 += (aileronAdj + 20);
-
-throttle2 -= aileronAdj;
   //analogWrit
 
 // Serial.print(throttle1);
 // Serial.print("   ");
 // Serial.println(throttle2);
+
+
   //manual lift
   //try with servo
   //prop1.write(throttle1); 
   //prop2.write(throttle2);
   //analogwrite got weird calibration
   //do pwm with stuff that makes sense
-  prop1.writeMicroseconds(throttle1);
-  prop2.writeMicroseconds(throttle2);
-
+ 
+// throttle1 = map(throttle1, 0, 900, 1500, 2000);
+// throttle2 = map(throttle2, 0, 900, 1500, 2000);
+// throttle1 += (aileronAdj + 20);
+// throttle2 -= aileronAdj;
 
 
 
@@ -259,10 +240,46 @@ throttle2 -= aileronAdj;
   //Serial.println(IR1.data);
 
 
+//input maps
+ aileronAdj = map(aileron, 1100, 2000, 70, -70);
+  throttle1 =  map(throttle, 1100, 2000, 0, 900);
+  throttle2 = map(throttle, 1100, 2000, 0, 900);
+
+  //stabilization code and power to props
+
+//lat roll and hotdog guzzler idk 
+  if (gyro_x > 0.1){
+   throttle1 = throttle1*(1 + gyro_x);
+   throttle2 = throttle2*(1 - gyro_x);
+
+  }else if (gyro_x < -0.1){
+   throttle1 = throttle1*(1 + gyro_x);
+   throttle2 = throttle2*(1 - gyro_x);
+
+  }
+
+     //forward/backward
+  if (gyro_x > 0.1){
+   throttle1 = throttle1*(1 + gyro_x);
+   throttle2 = throttle2*(1 - gyro_x);
+
+  }else if (gyro_x < -0.1){
+   throttle1 = throttle1*(1 + gyro_x);
+   throttle2 = throttle2*(1 - gyro_x);
+
+  }
+
+  
+
+
+  prop1.writeMicroseconds(throttle1);
+  prop2.writeMicroseconds(throttle2);
 
 
 
-  //servo1.write(map(acc_x, -25000, 25000, 20, 150));
+
+//diagnostics
+//PrintRCdata();
 }
 
 void throttleCHECK() {
@@ -322,7 +339,14 @@ void stop() {
 
 
 
-
+void PrintRCdata(){
+  Serial.print("throttle:         ");
+  Serial.print(throttle);
+  Serial.print("     aileron:   ");
+  Serial.print(aileron);
+  Serial.print("     elevator:  ");
+  Serial.println(elevator);
+}
 
 
 
