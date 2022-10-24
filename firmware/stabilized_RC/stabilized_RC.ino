@@ -6,14 +6,15 @@
 #include <AccelStepper.h>
 
 
-#define throttlePin 3
-#define aileronPin 2
+#define throttlePin 2
+#define aileronPin 3
 #define elevatorPin 4
 
 #define prop1pin 6
 #define prop2pin 9
 
 Adafruit_MPU6050 mpu;
+sensors_event_t a, g, temp;
 
 Servo prop1;  //cw
 Servo prop2;  //ccw
@@ -63,13 +64,13 @@ int aileronAdj = 0;
 const int imu_address = 0x68;  //I2C address of imu
 //accelerometer
 
-float acc_x;
-float acc_y;
-float acc_z;
-float gyro_x;
-float gyro_y;
-float gyro_z;
-int temperature;
+// float acc_x;
+// float acc_y;
+// float acc_z;
+// float gyro_x;
+// float gyro_y;
+// float gyro_z;
+// int temperature;
 
 int mot1 = 7;
 int mot2 = 8;
@@ -111,19 +112,17 @@ void setup() {
   Serial.println("mpu initiation appears successfull");
   delay(100);
 
-  // Wire.begin();
-  //   Wire.beginTransmission(imu_address);
-  //   Wire.write(0x6B); //PWR_MGMT_1 register
-  //   Wire.write(0); //wakey wakey MPU-6050
-  //   Wire.endTransmission(true);
-  //  prop1.attach(prop1pin);
-  //  prop2.attach(prop2pin);
   prop1.attach(prop1pin);
   prop2.attach(prop2pin);
 }
 
 
 void loop() {
+  //diagnostics
+  //PrintACCdata();
+  //PrintThrottle();
+  //PrintRCdata();//////////////////////////////////////////////////////////////////;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
   elevatorSlowdownCount++;
 
   //wheel control
@@ -143,29 +142,11 @@ void loop() {
 
 
 
-  sensors_event_t a, g, temp;
   mpu.getEvent(&a, &g, &temp);
-/*
- Serial.print("AccelX:");
-  Serial.print(a.acceleration.x);
-  Serial.print(",");
-  Serial.print("AccelY:");
-  Serial.print(a.acceleration.y);
-  Serial.print(",");
-  Serial.print("AccelZ:");
-  Serial.print(a.acceleration.z);
-  Serial.print(", ");
-  Serial.print("GyroX:");
-  Serial.print(g.gyro.x);
-  Serial.print(",");
-  Serial.print("GyroY:");
-  Serial.print(g.gyro.y);
-  Serial.print(",");
-  Serial.print("GyroZ:");
-  Serial.print(g.gyro.z);
-  Serial.println("");
 
-*/
+
+
+
 
 
   if (throttletmp < 2000) {
@@ -187,89 +168,60 @@ void loop() {
 
   //analogWrit
 
-// Serial.print(throttle1);
-// Serial.print("   ");
-// Serial.println(throttle2);
 
 
   //manual lift
   //try with servo
-  //prop1.write(throttle1); 
+  //prop1.write(throttle1);
   //prop2.write(throttle2);
   //analogwrite got weird calibration
   //do pwm with stuff that makes sense
- 
-// throttle1 = map(throttle1, 0, 900, 1500, 2000);
-// throttle2 = map(throttle2, 0, 900, 1500, 2000);
-// throttle1 += (aileronAdj + 20);
-// throttle2 -= aileronAdj;
+
+  
+   
 
 
 
-
-
-
-
-
-  Wire.beginTransmission(imu_address);
-  Wire.write(0x3B);                            // starting with register 0x3B (ACCEL_XOUT_H) [MPU-6000 and MPU-6050 Register Map and Descriptions Revision 4.2, p.40]
-  Wire.endTransmission(false);                 // the parameter indicates that the Arduino will send a restart. As a result, the connection is kept active.
-  Wire.requestFrom(imu_address, 7 * 2, true);  // request a total of 7*2=14 registers
-
-
-  //"Wire.read()<<8 | Wire.read();" means two registers are read and stored in the same variable
-  acc_x = Wire.read() << 8 | Wire.read();        // reading registers: 0x3B (ACCEL_XOUT_H) and 0x3C (ACCEL_XOUT_L)
-  acc_y = Wire.read() << 8 | Wire.read();        // reading registers: 0x3D (ACCEL_YOUT_H) and 0x3E (ACCEL_YOUT_L)
-  acc_z = Wire.read() << 8 | Wire.read();        // reading registers: 0x3F (ACCEL_ZOUT_H) and 0x40 (ACCEL_ZOUT_L)
-  temperature = Wire.read() << 8 | Wire.read();  // reading registers: 0x41 (TEMP_OUT_H) and 0x42 (TEMP_OUT_L)
-  gyro_x = Wire.read() << 8 | Wire.read();       // reading registers: 0x43 (GYRO_XOUT_H) and 0x44 (GYRO_XOUT_L)
-  gyro_y = Wire.read() << 8 | Wire.read();       // reading registers: 0x45 (GYRO_YOUT_H) and 0x46 (GYRO_YOUT_L)
-  gyro_z = Wire.read() << 8 | Wire.read();       // reading registers: 0x47 (GYRO_ZOUT_H) and 0x48 (GYRO_ZOUT_L)
-
-  //print out data
-  // Serial.print("aX = "); Serial.print(String(acc_x));
-
-  // Serial.print(" | aY = "); Serial.print(String(acc_y));
-  // Serial.print(" | aZ = "); Serial.print(String(acc_z));
-  // // the following equation was taken from the documentation [MPU-6000/MPU-6050 Register Map and Description, p.30]
-  // //Serial.print(" | tmp = "); Serial.print(temperature/340.00+36.53);
-  // Serial.print(" | gX = "); Serial.print(String(gyro_x));
-  // Serial.print(" | gY = "); Serial.print(String(gyro_y));
-  // Serial.print(" | gZ = "); Serial.print(String(gyro_z));
-  //  Serial.println();
-  //Serial.println(IR1.data);
-
-
-//input maps
- aileronAdj = map(aileron, 1100, 2000, 70, -70);
-  throttle1 =  map(throttle, 1100, 2000, 0, 900);
+  //input maps
+  
+  aileronAdj = map(aileron, 1100, 2000, 30, -30);
+  throttle1 = map(throttle, 1100, 2000, 0, 900);
   throttle2 = map(throttle, 1100, 2000, 0, 900);
+  //adjustment
+  throttle1 -= (aileronAdj);
+   throttle2 += aileronAdj;
 
   //stabilization code and power to props
 
-//lat roll and hotdog guzzler idk 
-  if (gyro_x > 0.1){
-   throttle1 = throttle1*(1 + gyro_x);
-   throttle2 = throttle2*(1 - gyro_x);
+  //lat roll 
+  int rollConstantR = 60;
+  int rollConstantL = 40;
 
-  }else if (gyro_x < -0.1){
-   throttle1 = throttle1*(1 + gyro_x);
-   throttle2 = throttle2*(1 - gyro_x);
+  if(throttle > 1250){
+  if (a.acceleration.y > 0.5){
+   throttle1 = throttle1 + rollConstantR*(0 + a.acceleration.y);
+   throttle2 = throttle2 + rollConstantR*(0 - a.acceleration.y);
 
-  }
-
-     //forward/backward
-  if (gyro_x > 0.1){
-   throttle1 = throttle1*(1 + gyro_x);
-   throttle2 = throttle2*(1 - gyro_x);
-
-  }else if (gyro_x < -0.1){
-   throttle1 = throttle1*(1 + gyro_x);
-   throttle2 = throttle2*(1 - gyro_x);
+  }else if (a.acceleration.y < -0.5){
+   throttle1 = throttle1 + rollConstantL*(0 + a.acceleration.y);
+   throttle2 = throttle2 + rollConstantL*(0 - a.acceleration.y);
 
   }
+  }
+  //forward/backward
+  // if (a.acceleration.z > 0.1){
+  //  throttle1 = throttle1*(1 + a.acceleration.z);
+  //  throttle2 = throttle2*(1 - gyro_x);
 
-  
+  // }else if (a.acceleration.z < -0.1){
+  //  throttle1 = throttle1*(1 + gyro_x);
+  //  throttle2 = throttle2*(1 - gyro_x);
+
+  // }
+//final adjustments
+
+throttle1 = map(throttle1, 0, 900, 1500, 2000);
+throttle2 = map(throttle2, 0, 900, 1500, 1900);
 
 
   prop1.writeMicroseconds(throttle1);
@@ -278,8 +230,6 @@ void loop() {
 
 
 
-//diagnostics
-//PrintRCdata();
 }
 
 void throttleCHECK() {
@@ -331,15 +281,45 @@ void stop() {
 
 
 
+void PrintACCdata() {
+  Serial.print("AccelX:");
+  Serial.print(a.acceleration.x);
+  Serial.print(",");
+  Serial.print("AccelY:");
+  Serial.print(a.acceleration.y);
+  Serial.print(",");
+  Serial.print("AccelZ:");
+  Serial.print(a.acceleration.z);
+  Serial.print(", ");
+  Serial.print("GyroX:");
+  Serial.print(g.gyro.x);
+  Serial.print(",");
+  Serial.print("GyroY:");
+  Serial.print(g.gyro.y);
+  Serial.print(",");
+  Serial.print("GyroZ:");
+  Serial.print(g.gyro.z);
+  Serial.print("Temp:");
+  Serial.print(temp.current);
+  Serial.println("");
+}
 
 
 
 
 
+void PrintThrottle(){
+  Serial.print(" input:  ");
+  Serial.print(throttle);
+   Serial.print("   Throttle 1:  ");
+  Serial.print(throttle1);
+  Serial.print("   Throttle 2:  ");
+  Serial.println(throttle2);
+
+}
 
 
-
-void PrintRCdata(){
+void PrintRCdata() {
   Serial.print("throttle:         ");
   Serial.print(throttle);
   Serial.print("     aileron:   ");
