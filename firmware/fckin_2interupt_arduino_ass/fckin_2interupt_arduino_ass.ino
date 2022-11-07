@@ -2,13 +2,14 @@
 #include <Adafruit_Sensor.h>
 #include <Wire.h>
 #include <Servo.h>
+#include <FastPID.h>
 
 #include <AccelStepper.h>
 
 
-#define throttlePin 2 // eliminating
+#define throttlePin 99 // eliminating
 #define aileronPin 3
-#define elevatorPin 4
+#define elevatorPin 2
 
 #define prop1pin 6
 #define prop2pin 9
@@ -52,6 +53,10 @@ volatile long elevatortmp = 0;
 int elevator = 0;
 
 
+//startup sequence
+int initiated = 0;
+
+
 //control
 int throttle1 = 0;
 int throttle2 = 0;
@@ -75,15 +80,16 @@ const int imu_address = 0x68;  //I2C address of imu
 int mot1 = 79;
 int mot2 = 89;
 int motpwm = 59;
-
+int speed = 800;
+float leveller;
 
 int elevatorSlowdownCount = 0;
 
 
 void setup() {
   wheel.setMinPulseWidth(20);
-wheel.setAcceleration(1000);
-wheel.setMaxSpeed(2000);
+wheel.setAcceleration(100000000);
+wheel.setMaxSpeed(speed);
 
 
 
@@ -101,15 +107,15 @@ wheel.setMaxSpeed(2000);
   pinMode(mot1, OUTPUT);
   pinMode(mot2, OUTPUT);
   pinMode(motpwm, OUTPUT);
-
+pinMode(12, OUTPUT);
 
 
   pinMode(throttlePin, INPUT_PULLUP);
   pinMode(aileronPin, INPUT_PULLUP);
   pinMode(elevatorPin, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(throttlePin), throttleCHECK, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(aileronPin), aileronCHECK, CHANGE);
-  //attachInterrupt(digitalPinToInterrupt(elevatorPin), elevatorCHECK, CHANGE);
+  //attachInterrupt(digitalPinToInterrupt(throttlePin), throttleCHECK, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(aileronPin), aileronCHECK, CHANGE); 
+  attachInterrupt(digitalPinToInterrupt(elevatorPin), elevatorCHECK, CHANGE);
 
   mpu.setAccelerometerRange(MPU6050_RANGE_16_G);
   mpu.setGyroRange(MPU6050_RANGE_250_DEG);
@@ -119,10 +125,50 @@ wheel.setMaxSpeed(2000);
 
   prop1.attach(prop1pin);
   prop2.attach(prop2pin);
+  // prop1.writeMicroseconds(0);
+  // prop2.writeMicroseconds(0);
+  initiated = 0;
+  while(initiated < 1){
+    int arming = 0;
+    mpu.getEvent(&a, &g, &temp);
+      Serial.println(a.acceleration.z);
+      digitalWrite(12, LOW);
+
+    while(a.acceleration.z < 0 && a.acceleration.z > -0.8){
+          mpu.getEvent(&a, &g, &temp);
+
+      arming ++;
+      Serial.println(arming);
+      digitalWrite(12, HIGH);
+      if (arming > 1000){
+        prop1.writeMicroseconds(1500);
+        prop2.writeMicroseconds(1500);
+        digitalWrite(12, LOW);
+        delay(1000);
+         digitalWrite(12, HIGH);
+        delay(200);
+        digitalWrite(12, LOW);
+        delay(200);
+        digitalWrite(12, HIGH);
+        delay(200);
+        digitalWrite(12, LOW);
+        delay(200);
+        digitalWrite(12, HIGH);
+        delay(1000);
+        initiated = 1;
+        break;
+      }
+    }
+
+  }
 }
 
 
 void loop() {
+//elevator = 1500;
+  if(throttle < 1250){
+    throttle ++;
+  }
 
   //diagnostics
   //PrintACCdata();
@@ -135,16 +181,12 @@ void loop() {
   if (elevator > 1600) {
     forward();
 
-    analogWrite(motpwm, map(elevator, 1600, 1900, 0, 255));
   } else if (elevator < 1400) {
     backward();
-    analogWrite(motpwm, map(elevator, 1400, 1100, 0, 255));
 
   } else {
     stop();
   }
- wheel.run();
-
 
 
 
@@ -156,23 +198,23 @@ void loop() {
 
 
 
-  if (throttletmp < 2000) {
-    throttle = throttletmp;
-  }
+  // if (throttletmp < 2000) {
+  //   throttle = throttletmp;
+  // }
+  //throttle = 1600;
   if (ailerontmp < 2000) {
     aileron = ailerontmp;
   }
 
-  // if (elevatortmp < 2000){
-  //   elevator = elevatortmp;
-  // }
- wheel.run();
+  if (elevatortmp < 2000){
+    elevator = elevatortmp;
+  }
 
   // if (elevatorSlowdownCount > 15) {
-  //   elevator = pulseIn(elevatorPin, HIGH);
+  //   speed++;
+  //   wheel.setMaxSpeed(speed);
   //   elevatorSlowdownCount = 0;
   // }
- wheel.run();
 
 
   //analogWrit
@@ -197,7 +239,7 @@ void loop() {
   throttle1 = map(throttle, 1100, 2000, 0, 900);
   throttle2 = map(throttle, 1100, 2000, 0, 900);
   //adjustment
-  throttle1 -= (aileronAdj);
+   throttle1 -= (aileronAdj);
    throttle2 += aileronAdj;
 
   //stabilization code and power to props
@@ -218,28 +260,40 @@ void loop() {
   }
   }
   //forward/backward
-  // if (a.acceleration.z > 0.1){
-  //  throttle1 = throttle1*(1 + a.acceleration.z);
-  //  throttle2 = throttle2*(1 - gyro_x);
+  // if (a.acceleration.z > 0.05){
+  //  throttle1 = throttle1*(0.95 - a.acceleration.z);
+  //  throttle2 = throttle2*(0.95 - a.acceleration.z);
 
-  // }else if (a.acceleration.z < -0.1){
-  //  throttle1 = throttle1*(1 + gyro_x);
-  //  throttle2 = throttle2*(1 - gyro_x);
+  // }else if (a.acceleration.z < -0.05){
+  //  throttle1 = throttle1*(1.05 - a.acceleration.z);
+  //  throttle2 = throttle2*(1.05 - a.acceleration.z);
 
   // }
+  leveller = mapFloat(abs(a.acceleration.z), 0.0, 5.0, 1.0, 0.0);
+throttle1 = throttle1*(1 - a.acceleration.z * (leveller));
+throttle2 = throttle2*(1 - a.acceleration.z * (leveller));
+  //leveller = map(a.acceleration.z, -5*a.acceleration.z, 5.0, 0, 100);
+//Serial.println(leveller);
 //final adjustments
 
 throttle1 = map(throttle1, 0, 900, 1500, 2000);
 throttle2 = map(throttle2, 0, 900, 1500, 1900);
 
 
+if (initiated == 1){
+  if (throttle1 < 1500){
+    throttle1 = 1500;
+  }
+  if (throttle2 < 1500){
+    throttle2 = 1500;
+  }
   prop1.writeMicroseconds(throttle1);
   prop2.writeMicroseconds(throttle2);
-
+}
 
 wheel.run();
-
 }
+
 
 void throttleCHECK() {
   throttlecurrent = micros();
@@ -268,9 +322,8 @@ void elevatorCHECK() {
 }
 
 void forward() {
- wheel.setCurrentPosition(10000);
-wheel.moveTo(20000);
-wheel.run();
+ wheel.setCurrentPosition(100000);
+wheel.moveTo(2000000);
 
 
   // digitalWrite(mot1, LOW);
@@ -279,9 +332,8 @@ wheel.run();
 }
 
 void backward() {
-   wheel.setCurrentPosition(10000);
+   wheel.setCurrentPosition(100000);
   wheel.moveTo(0);
-wheel.runToPosition();
 
   // digitalWrite(mot1, HIGH);
   // digitalWrite(mot2, LOW);
@@ -292,7 +344,6 @@ void stop() {
     wheel.moveTo(10000);
 
   wheel.setCurrentPosition(10000);
-  wheel.run();
 
   //digitalWrite(mot1, LOW);
   //digitalWrite(mot2, LOW);
@@ -354,7 +405,21 @@ void PrintRCdata() {
 
 
 
+//this function is a common way to map floats in arduino
+float mapFloat(float input, float min, float max, float tomin, float tomax ){
+   float output;
+    
+     output = (input - min) * (tomax - tomin) / (max - min) + tomin;
+     //I understand this as y = mx + b
+     //m is the ratio of ranges (tomax - tomin)/(max - min)
+      //x is the input minus it's y intercept
+    //b is the y intercept of the desired range
 
+      return output;
+      
+
+
+ }
 
 
 //if (Serial.available() > 0){
