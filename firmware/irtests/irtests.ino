@@ -64,7 +64,7 @@ diagnostics();
 void loop() {
   // put your main code here, to run repeatedly:
   sensorCheck();
-  diagnostics();
+  //diagnostics();
   //PrintRCdata();
 
 

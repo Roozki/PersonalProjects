@@ -6,7 +6,8 @@
 #include <Wire.h>
 #include <Servo.h>
 #include <std_msgs/Int16.h>
-//#include <std_msgs/Float64.h>
+//#include <sb_msgs/ArmPosition.h>
+#include <std_msgs/Int64MultiArray.h>
 #include <geometry_msgs/TwistStamped.h>
 
 
@@ -18,6 +19,9 @@ ros::NodeHandle nh;
 std_msgs::Int16 heart; //heartbeat for debugging purposes
 std_msgs::Int16 IR1;
 std_msgs::Int16 IR2;
+//sb_msgs::ArmPosition INangles;
+//sb_msgs::ArmPosition OBSangles;
+std_msgs::Int16()
 //std_msgs::Int16 IR3;
 //std_msgs::Int16 IR4;
 //std_msgs::Int16 IR5;
@@ -32,6 +36,8 @@ std_msgs::Int16 IR2;
 ros::Publisher heartbeat("heartbeat", &heart);
 ros::Publisher ir_1("ir_sensors/IR1", &IR1);
 ros::Publisher ir_2("ir_sensors/IR2", &IR2);
+ros::Publisher observer("/observed_arm_pos_int", &OBSangles, 100);
+
 // ros::Publisher ir_3("ir_sensors/IR3", &IR3);
 // ros::Publisher ir_4("ir_sensors/IR4", &IR4);
 // ros::Publisher ir_5("ir_sensors/IR5", &IR5);
@@ -75,18 +81,21 @@ void setup() {
   // put your setup code here, to run once:
  counter ++;
  //im happy to explain my ROS integration in person. Im planning to use it to visualize data for debugging.
+ 
  nh.initNode();
  nh.advertise(heartbeat);
 
   nh.advertise(ir_1);
    nh.advertise(ir_2);
+   nh.advertise(observer);
+
   // nh.advertise(ir_3);
   // nh.advertise(ir_4);
   // nh.advertise(ir_5);
 
   //nh.advertise(imu_pub);
 
-  Serial.begin(9600);
+ // Serial.begin(9600);
   // Wire.begin();
   // Wire.beginTransmission(imu_address);
   // Wire.write(0x6B); //PWR_MGMT_1 register
@@ -119,7 +128,7 @@ ir_1.publish( &IR1);
 // ir_5.publish( &IR1);
 
 
-
+observer.publish(&OBSangles);
 
 
 

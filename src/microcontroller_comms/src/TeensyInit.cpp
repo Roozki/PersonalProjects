@@ -14,7 +14,7 @@ Wee::Wee(int argc, char **argv, std::string node_name) {
     ros::NodeHandle nh;
     ros::NodeHandle private_nh("~");
 
-    // Obtains character from the parameter server (or launch file), sets '!' as default
+    // Obtains character from the parameter server (or launch file)
     std::string parameter_name    = "port";
     std::string default_character = "/dev/tty0";
     //SB_getParam(private_nh, parameter_name, suffix, default_character);
