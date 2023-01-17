@@ -1,15 +1,15 @@
+//my superwatch
+
 #include <NTPClient.h>
-// change next line to use with another board/shield
-//#include <ESP8266WiFi.h>
-#include <WiFi.h>  // for WiFi shield
-//#include <WiFi101.h> // for WiFi 101 shield or MKR1000
+#include <WiFi.h>
 #include <WiFiUdp.h>
 #include <TFT_eSPI.h>
 #include <Button2.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
-
-#include "BluetoothSerial.h"
+#define CUSTOM_SETTINGS
+#define INCLUDE_SENSOR_MODULE
+#include <DabbleESP32.h>
 
 #if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
 #error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
@@ -47,19 +47,20 @@
 bool gptReady = true;
 //bool gnssCool = true;
 bool btCoolDown = true;
+String classes[] = {"CIVL 215"};  
+
 
 //temp variables, am i bad for making these?
 String tString;
 
 //hardware objects
-BluetoothSerial bt;
 TFT_eSPI tft = TFT_eSPI();
 WiFiUDP ntpUDP;
 NTPClient timeClient(ntpUDP, "ca.pool.ntp.org", -(3600 * 8));
 
 
-const char* ssid = "kimikimi001";   // "StiggleSWERF V3";
-const char* password = "Lexus300";  //"mountainbike";
+const char* ssid = "ubcvisitor"; // "StiggleSWERF V3"; 
+//const char* password =   //"----";
 
 
 int width = 240;
@@ -91,7 +92,7 @@ bool brightflag = 0;
 
 
 String gpt3Comm(String prompt, int type) {
-  String output = "null";
+  String output = "null failure";
 
   if (WiFi.status() == WL_CONNECTED) {  //Check WiFi connection status
     HTTPClient http;
@@ -101,7 +102,7 @@ String gpt3Comm(String prompt, int type) {
 
     http.addHeader("Authorization", "Bearer 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");
     http.addHeader("Content-Type", "application/json");
-    String request = "{\"model\":\"text-davinci-003\",\"max_tokens\":30,\"prompt\":\"I am a witty, snarky assistant who uses profanity, and my next insult will be\"}";
+    String request = "{\"model\":\"text-davinci-003\",\"max_tokens\":60,\"prompt\":\"" + prompt +"\"}";
 
     int httpResponseCode = http.POST(request);
     if (httpResponseCode > 0) {  //Check for the returning code
@@ -276,10 +277,17 @@ void disTime() {
     case (6):
       tft.println(F("Saturday"));
       break;
-    case (7):
+    case (0):
       tft.println(F("Sunday"));
       break;
   }
+  fontqset(10, tft.getCursorY() + 5, TFT_CYAN, 2, 1);
+  tft.print("Longitude: ");
+  tft.println(Sensor.getGPSlongitude());
+  tft.setCursor(10, tft.getCursorY());
+  tft.print("Latitude: ");
+  tft.println(Sensor.getGPSLatitude());
+
 }
 
 void disGNSS(int lat, int long) {
@@ -322,14 +330,17 @@ void disMisc(int cmd) {
       }
     case (40):  //bluetooth
       {
-        tft.fillScreen(TFT_CYAN);
-        fontqset(10, 5, TFT_DARKGREY, 4, 1);
-        tft.print("BT COMMS");
-        fontqset(10, 30, TFT_DARKGREY, 1, 2);
-        if(bt.available() > 0){
-        tft.print(char(bt.read()));
-   
-        }
+         tft.fillScreen(TFT_DARKCYAN);
+         fontqset(10, 5, TFT_LIGHTGREY, 4, 1);
+         tft.print("BT COMMS");
+         fontqset(10, 30, TFT_PINK, 1, 2);
+         tft.print("x accel:");
+         tft.println(Sensor.getAccelerometerXaxis());
+         tft.print(" y accel:");
+         tft.println(Sensor.getAccelerometerYaxis());
+         tft.print(" z accel:");
+         tft.println(Sensor.getAccelerometerZaxis());
+
         break;
       }
     case (50):  //STANDBY
@@ -387,7 +398,7 @@ void setup() {
   tft.fillScreen(TFT_BLACK);
   tft.setTextSize(1);
 
-  WiFi.begin(ssid, password);
+  WiFi.begin(ssid);
   tft.setCursor(10, 10);
   tft.setTextFont(1);
   tft.setTextColor(TFT_MAGENTA);
@@ -411,7 +422,7 @@ void setup() {
 
   tft.println("buttons enabled");
   delay(100);
-bt.begin("SUPERWATCH!!!");
+Dabble.begin("SUPERWATCH!!!");
 
 tft.println(F("bluetooth enabled"));
 delay(100);
@@ -447,11 +458,18 @@ delay(100);
 
 }
 
+String nextClass(){
+
+
+}
+
 void loop() {
+  //hardware refresh
   btn1.loop();
   btn2.loop();
+  Dabble.processInput();
 
-  if (micros() - disPrevTime > 1000000 || bypass) {
+  if (micros() - disPrevTime > 900000 || bypass) {
     if (!powerlow && !brightflag) {
       switch (menu) {
         case (0):
@@ -465,9 +483,10 @@ void loop() {
           if (gptReady) {
             disMisc(50);
 
-            tString = gpt3Comm("test", 1);
+            tString = gpt3Comm("Hello, could you share some good job interview tips?", 1);
           }
           disMisc(90);
+          break;
         case (-1):  //bluetooth comms
             disMisc(40);
         default:
