@@ -1,98 +1,11 @@
 //my superwatch
 
-#include <NTPClient.h>
-#include <WiFi.h>
-#include <WiFiUdp.h>
-#include <TFT_eSPI.h>
-#include <Button2.h>
-#include <HTTPClient.h>
-#include <ArduinoJson.h>
-#define CUSTOM_SETTINGS
-#define INCLUDE_SENSOR_MODULE
-#include <DabbleESP32.h>
+#include "superwatch.h"
 
-#if !defined(CONFIG_BT_ENABLED) || !defined(CONFIG_BLUEDROID_ENABLED)
-#error Bluetooth is not enabled! Please run `make menuconfig` to and enable it
-#endif
-
-
-//for reference, more info and modifyabiliyt in TFT_eSPI.h
-// #define TFT_BLACK       0x0000      /*   0,   0,   0 */
-// #define TFT_NAVY        0x000F      /*   0,   0, 128 */
-// #define TFT_DARKGREEN   0x03E0      /*   0, 128,   0 */
-// #define TFT_DARKCYAN    0x03EF      /*   0, 128, 128 */
-// #define TFT_MAROON      0x7800      /* 128,   0,   0 */
-// #define TFT_PURPLE      0x780F      /* 128,   0, 128 */
-// #define TFT_OLIVE       0x7BE0      /* 128, 128,   0 */
-// #define TFT_LIGHTGREY   0xD69A      /* 211, 211, 211 */
-// #define TFT_DARKGREY    0x7BEF      /* 128, 128, 128 */
-// #define TFT_BLUE        0x001F      /*   0,   0, 255 */
-// #define TFT_GREEN       0x07E0      /*   0, 255,   0 */
-// #define TFT_CYAN        0x07FF      /*   0, 255, 255 */
-// #define TFT_RED         0xF800      /* 255,   0,   0 */
-// #define TFT_MAGENTA     0xF81F      /* 255,   0, 255 */
-// #define TFT_YELLOW      0xFFE0      /* 255, 255,   0 */
-// #define TFT_WHITE       0xFFFF      /* 255, 255, 255 */
-// #define TFT_ORANGE      0xFDA0      /* 255, 180,   0 */
-// #define TFT_GREENYELLOW 0xB7E0      /* 180, 255,   0 */
-// #define TFT_PINK        0xFE19      /* 255, 192, 203 */ //Lighter pink, was 0xFC9F
-// #define TFT_BROWN       0x9A60      /* 150,  75,   0 */
-// #define TFT_GOLD        0xFEA0      /* 255, 215,   0 */
-// #define TFT_SILVER      0xC618      /* 192, 192, 192 */
-// #define TFT_SKYBLUE     0x867D      /* 135, 206, 235 */
-// #define TFT_VIOLET      0x915C      /* 180,  46, 226 */
-
-
-//    ++++   flags
-bool gptReady = true;
-//bool gnssCool = true;
-bool btCoolDown = true;
-String classes[] = {"CIVL 215"};  
-
-
-//temp variables, am i bad for making these?
-String tString;
-
-//hardware objects
-TFT_eSPI tft = TFT_eSPI();
-WiFiUDP ntpUDP;
-NTPClient timeClient(ntpUDP, "ca.pool.ntp.org", -(3600 * 8));
-
-
-const char* ssid = "ubcvisitor"; // "StiggleSWERF V3"; 
-//const char* password =   //"----";
-
-
-int width = 240;
-int height = 135;
-
-int disPrevTime = 0;
-
-#define RED 0xF800
-#define WHITE 0xFFFF
-#define ORANGE 0xF57C
-
-#define BUTTON_1 35
-#define BUTTON_2 0
-#define ADC_PIN 34
-#define ADC_EN 14
-
-
-bool bypass = false;
-bool powerlow = false;
-Button2 btn1;
-Button2 btn2;
-int menu = 0;
-int menuMax = 1;
-int menuMin = -2;
-int brightness = 200;
-int maxBright = 255;
-int minBright = 1;
-bool brightflag = 0;
 
 
 String gpt3Comm(String prompt, int type) {
-  String output = "null failure";
+  String output = "null failure, likley your internet connection dropped during the api request";
 
   if (WiFi.status() == WL_CONNECTED) {  //Check WiFi connection status
     HTTPClient http;
@@ -100,9 +13,9 @@ String gpt3Comm(String prompt, int type) {
     http.begin("https://api.openai.com/v1/completions");
     //yield();
 
-    http.addHeader("Authorization", "Bearer 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");
+    http.addHeader("Authorization", "Bearer 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");
     http.addHeader("Content-Type", "application/json");
-    String request = "{\"model\":\"text-davinci-003\",\"max_tokens\":60,\"prompt\":\"" + prompt +"\"}";
+    String request = "{\"model\":\"text-davinci-003\",\"max_tokens\":60,\"prompt\":\"" + prompt + "\"}";
 
     int httpResponseCode = http.POST(request);
     if (httpResponseCode > 0) {  //Check for the returning code
@@ -117,7 +30,7 @@ String gpt3Comm(String prompt, int type) {
   gptReady = false;  //needs a cooldown
 
   //parsing
-  output = output.substring(output.lastIndexOf("text") + 2, output.indexOf("index") - 1);
+  output = output.substring(output.lastIndexOf("text") + 2, output.indexOf("index") - 3);
 
   return output;
 }
@@ -151,6 +64,20 @@ void lowpower() {
   delay(500);
   tft.fillScreen(TFT_BLACK);
   ledcWrite(0, 0);
+}
+void disClasses() {
+  tft.fillScreen(TFT_CYAN);
+  tft.setTextColor(TFT_NAVY);
+  tft.setTextFont(1);
+  tft.setTextSize(3);
+  tft.setCursor(10, 10);
+  tft.print("CLASSES");
+  tft.setCursor(10, 40);
+  tft.setTextColor(TFT_LIGHTGREY);
+  tft.setTextSize(1);
+  tft.setTextFont(2);
+  //tft.setTextPadding(10);
+  tft.print(classes[2]);
 }
 void disReminder(float timeout, String reminder) {
   tft.fillScreen(TFT_NAVY);
@@ -250,10 +177,11 @@ void disTime() {
   tft.setTextFont(1);
   tft.setTextColor(TFT_MAGENTA);
 
+
   tft.setCursor(10, 10);
   tft.fillScreen(TFT_BLACK);
-
-  tft.println(timeClient.getFormattedTime());
+  String time = timeClient.getFormattedTime();
+  tft.println(time);
   int day = timeClient.getDay();
   tft.setTextColor(TFT_PINK);
   tft.setCursor(10, tft.getCursorY() + 3);
@@ -281,13 +209,142 @@ void disTime() {
       tft.println(F("Sunday"));
       break;
   }
-  fontqset(10, tft.getCursorY() + 5, TFT_CYAN, 2, 1);
-  tft.print("Longitude: ");
-  tft.println(Sensor.getGPSlongitude());
-  tft.setCursor(10, tft.getCursorY());
-  tft.print("Latitude: ");
-  tft.println(Sensor.getGPSLatitude());
+  fontqset(10, tft.getCursorY() + 5, TFT_WHITE, 2, 1);
+  tft.print("NEXT CLASS IS ");
+  printnextClassIn(0, 0, day);
+  // tft.print("Longitude: ");
+  // tft.println(Sensor.getGPSlongitude());
+  // tft.setCursor(10, tft.getCursorY());
+  // tft.print("Latitude: ");
+  // tft.println(Sensor.getGPSLatitude());
+}
 
+void printnextClassIn(int rolloverhr, int rollovermin, int day) {
+  int hr;
+  int min;
+   if(rolloverhr > 0){
+    hr = 0;
+    min = 0;
+  }else{
+  hr = timeClient.getHours();
+  min = timeClient.getMinutes();
+  }
+ // int soonestClass; //in terms of index
+ int classindex;
+  int hruntil = 999;
+  int minuntil = 999;
+  String nextname;
+
+  switch (day) {
+        case (1):
+             for(int i =0; i < NUM_CLASSES; i++){ //no classes start within under an hour of eachother
+            if(classday[i].indexOf("M") > 0){
+              if(hr < classhr[i] && (classhr[i] - hr) < hruntil && (classhr[i] - hr) >= 0){
+                hruntil = (classhr[i] - hr -1);
+                nextname = classes[i];
+                minuntil = 60 - min + classmin[i];
+                
+                
+              }
+            }
+            }
+
+          break;
+        case (2):
+              for(int i =0; i < NUM_CLASSES; i++){ //no classes start within under an hour of eachother
+            if(classday[i].indexOf("Tu") > 0){
+              if(hr < classhr[i] && (classhr[i] - hr) < hruntil && (classhr[i] - hr) >= 0){
+                hruntil = (classhr[i] - hr -1);
+                nextname = classes[i];
+                minuntil = 60 - min + classmin[i];
+               
+                
+              }
+            }
+            }
+          break;
+        case (3):
+           for(int i =0; i < NUM_CLASSES; i++){ //no classes start within under an hour of eachother
+            if(classday[i].indexOf("W") > 0){
+              if(hr < classhr[i] && (classhr[i] - hr) < hruntil && (classhr[i] - hr) >= 0){
+                hruntil = (classhr[i] - hr -1);
+                nextname = classes[i];
+                minuntil = 60 - min + classmin[i];
+               
+                
+              }
+            }
+            }
+          break;
+        case (4):
+              for(int i =0; i < NUM_CLASSES; i++){ //no classes start within under an hour of eachother
+            if(classday[i].indexOf("Th") > 0){
+              if(hr < classhr[i] && (classhr[i] - hr) < hruntil && (classhr[i] - hr) >= 0){
+                hruntil = (classhr[i] - hr -1);
+                nextname = classes[i];
+                minuntil = 60 - min + classmin[i];
+               
+                
+              }
+            }
+            }
+          break;
+        case (5):
+              for(int i =0; i < NUM_CLASSES; i++){ //no classes start within under an hour of eachother
+            if(classday[i].indexOf("F") > 0){
+              if(hr < classhr[i] && (classhr[i] - hr) < hruntil && (classhr[i] - hr) >= 0){
+                hruntil = (classhr[i] - hr -1);
+                nextname = classes[i];
+                minuntil = 60 - min + classmin[i];
+               
+                
+              }
+            }
+            }
+          break;
+        case (6):
+           for(int i =0; i < NUM_CLASSES; i++){ //no classes start within under an hour of eachother
+            if(classday[i].indexOf("Sa") > 0){
+              if(hr < classhr[i] && (classhr[i] - hr) < hruntil && (classhr[i] - hr) >= 0){
+                hruntil = (classhr[i] - hr -1);
+                nextname = classes[i];
+                minuntil = 60 - min + classmin[i];
+                
+                
+              }
+            }
+            }
+          break;
+        case (0):
+           for(int i =0; i < NUM_CLASSES; i++){ //no classes start within under an hour of eachother
+            if(classday[i].indexOf("Su") > 0){
+              if(hr < classhr[i] && (classhr[i] - hr) < hruntil && (classhr[i] - hr) >= 0){
+                hruntil = (classhr[i] - hr -1);
+                nextname = classes[i];
+                minuntil = 60 - min + classmin[i];
+                
+                
+              }
+            }
+            }
+          break;
+      }
+      hruntil += rolloverhr;
+      minuntil += rollovermin;
+      if(hruntil == 999){ //day rollover
+        rolloverhr = 24 - hr;
+        rollovermin = 60 - min;
+        printnextClassIn(rolloverhr, rollovermin, day + 1);
+    }else{
+          tft.setTextColor(TFT_MAGENTA);
+          tft.println(nextname);
+          tft.setTextColor(TFT_WHITE);
+          tft.println("  IN " + String(hruntil) + " hr, " + String(minuntil) + " min");
+
+    }
+
+
+  
 }
 
 void disGNSS(int lat, int long) {
@@ -311,7 +368,7 @@ void disMisc(int cmd) {
       }
     case (2):
       {
-        tft.setCursor(160, 100);
+        tft.setCursor(160, 10);
         tft.setTextSize(2);
         tft.setTextColor(TFT_GREEN);
         tft.setTextFont(1);
@@ -330,16 +387,16 @@ void disMisc(int cmd) {
       }
     case (40):  //bluetooth
       {
-         tft.fillScreen(TFT_DARKCYAN);
-         fontqset(10, 5, TFT_LIGHTGREY, 4, 1);
-         tft.print("BT COMMS");
-         fontqset(10, 30, TFT_PINK, 1, 2);
-         tft.print("x accel:");
-         tft.println(Sensor.getAccelerometerXaxis());
-         tft.print(" y accel:");
-         tft.println(Sensor.getAccelerometerYaxis());
-         tft.print(" z accel:");
-         tft.println(Sensor.getAccelerometerZaxis());
+        tft.fillScreen(TFT_DARKCYAN);
+        fontqset(10, 5, TFT_LIGHTGREY, 4, 1);
+        tft.print("BT COMMS");
+        fontqset(10, 30, TFT_PINK, 1, 2);
+        tft.print("x accel:");
+        tft.println(Sensor.getAccelerometerXaxis());
+        tft.print(" y accel:");
+        tft.println(Sensor.getAccelerometerYaxis());
+        tft.print(" z accel:");
+        tft.println(Sensor.getAccelerometerZaxis());
 
         break;
       }
@@ -379,9 +436,6 @@ void fontqset(int x, int y, int colour, int font, int size) {
   tft.setTextSize(size);
 }
 
-
-
-
 void setup() {
   //  Serial.begin(9600); serial lame. tft ftw!
   //oo but bluetooth
@@ -402,9 +456,9 @@ void setup() {
   tft.setCursor(10, 10);
   tft.setTextFont(1);
   tft.setTextColor(TFT_MAGENTA);
-  pinMode(ADC_EN, OUTPUT);
-  digitalWrite(ADC_EN, HIGH);
-  tft.println("ADC enabled");
+  // pinMode(ADC_EN, OUTPUT);
+  // digitalWrite(ADC_EN, HIGH);
+  // tft.println("ADC enabled");
   btn1.begin(BUTTON_1);
   btn2.begin(BUTTON_2);
   delay(100);
@@ -422,10 +476,9 @@ void setup() {
 
   tft.println("buttons enabled");
   delay(100);
-Dabble.begin("SUPERWATCH!!!");
-
-tft.println(F("bluetooth enabled"));
-delay(100);
+  Dabble.begin("SUPERWATCH!!!");
+  tft.println(F("bluetooth enabled"));
+  delay(100);
   tft.println(F("Attempting Connection to specified network using preset credentials"));
 
   while (WiFi.status() != WL_CONNECTED) {
@@ -452,22 +505,16 @@ delay(100);
   ledcSetup(0, 5000, 8);     // 0-15, 5000, 8
   ledcAttachPin(TFT_BL, 0);  // TFT_BL, 0 - 15
   ledcWrite(0, 200);         // 0-15, 0-255 (with 8 bit resolution); 0=totally dark;255=totally shiny
-
-
-
-
 }
 
-String nextClass(){
 
-
-}
 
 void loop() {
   //hardware refresh
   btn1.loop();
   btn2.loop();
-  Dabble.processInput();
+  //Dabble.processInput();
+  
 
   if (micros() - disPrevTime > 900000 || bypass) {
     if (!powerlow && !brightflag) {
@@ -483,17 +530,17 @@ void loop() {
           if (gptReady) {
             disMisc(50);
 
-            tString = gpt3Comm("Hello, could you share some good job interview tips?", 1);
+            tString = gpt3Comm("tell me an interesting fact about the nature of our universe", 1);
           }
           disMisc(90);
           break;
         case (-1):  //bluetooth comms
-            disMisc(40);
+          disMisc(40);
         default:
           disMisc(0);
           break;
       }
-      disMisc(10);  //power+menu
+    //  disMisc(10);  //menu debug
 
 
     } else if (brightflag) {
